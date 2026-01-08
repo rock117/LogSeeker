@@ -1,39 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchHealth, type HealthResponse } from '../api/client'
-
-type Project = {
-  id: string
-  name: string
-  default_timezone: string
-  multiline_enabled: boolean
-  timestamp_regex: string
-  sources: Array<{
-    path: string
-    include_globs: string[]
-    exclude_globs: string[]
-  }>
-  created_at: string
-  updated_at: string
-}
-
-async function fetchProjects(): Promise<Project[]> {
-  const resp = await fetch('/api/projects')
-  if (!resp.ok) throw new Error(`projects list failed: ${resp.status}`)
-  return resp.json() as Promise<Project[]>
-}
-
-async function createProject(name: string): Promise<Project> {
-  const resp = await fetch('/api/projects', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, sources: [] }),
-  })
-  if (!resp.ok) {
-    const text = await resp.text()
-    throw new Error(`create project failed: ${resp.status} ${text}`)
-  }
-  return resp.json() as Promise<Project>
-}
+import { createProject, fetchHealth, fetchProjects, type HealthResponse, type Project } from '../api/client'
 
 export default function ProjectsPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null)

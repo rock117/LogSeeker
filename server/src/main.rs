@@ -4,6 +4,7 @@ use rocket::serde::json::Json;
 use rocket::{delete, get, post, put, routes, Build, Rocket, State};
 use serde::Serialize;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod indexing;
 mod projects;
@@ -120,7 +121,10 @@ async fn rebuild_index(
 }
 
 async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
-    let port = portpicker::pick_unused_port().context("pick unused port")?;
+    let port = match std::env::var("LOGSEEKER_PORT") {
+        Ok(v) => u16::from_str(v.trim()).context("parse LOGSEEKER_PORT")?,
+        Err(_) => portpicker::pick_unused_port().context("pick unused port")?,
+    };
     let base_url = format!("http://127.0.0.1:{}", port);
 
     println!("LogSeeker: {}", base_url);
