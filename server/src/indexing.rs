@@ -70,19 +70,17 @@ impl IndexManager {
             let result = rebuild_index_for_project(&store, &data_dir, &project_id, &statuses).await;
             if let Err(e) = result {
                 let mut guard = statuses.write().await;
+                let (files_scanned, events_indexed) = guard
+                    .get(&project_id)
+                    .map(|s| (s.files_scanned, s.events_indexed))
+                    .unwrap_or((0, 0));
                 guard.insert(
                     project_id.clone(),
                     IndexStatus {
                         state: "error".to_string(),
                         message: Some(e.to_string()),
-                        files_scanned: guard
-                            .get(&project_id)
-                            .map(|s| s.files_scanned)
-                            .unwrap_or(0),
-                        events_indexed: guard
-                            .get(&project_id)
-                            .map(|s| s.events_indexed)
-                            .unwrap_or(0),
+                        files_scanned,
+                        events_indexed,
                     },
                 );
             }
@@ -243,13 +241,15 @@ async fn index_file(
             if !cur_lines.is_empty() {
                 if let Some(ts_millis) = cur_ts_millis {
                     let message = cur_lines.join("\n");
-                    writer.add_document(doc!(
+                    if let Err(e) = writer.add_document(doc!(
                         ts_field => ts_millis,
                         msg_field => message,
                         file_field => file_path.clone(),
                         start_line_field => cur_start_line as u64,
                         end_line_field => cur_end_line as u64,
-                    ));
+                    )) {
+                        return (added, Some(e.to_string()));
+                    }
                     added += 1;
                 }
             }
@@ -272,13 +272,15 @@ async fn index_file(
     if !cur_lines.is_empty() {
         if let Some(ts_millis) = cur_ts_millis {
             let message = cur_lines.join("\n");
-            writer.add_document(doc!(
+            if let Err(e) = writer.add_document(doc!(
                 ts_field => ts_millis,
                 msg_field => message,
                 file_field => file_path.clone(),
                 start_line_field => cur_start_line as u64,
                 end_line_field => cur_end_line as u64,
-            ));
+            )) {
+                return (added, Some(e.to_string()));
+            }
             added += 1;
         }
     }

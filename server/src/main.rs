@@ -123,7 +123,7 @@ async fn rebuild_index(
 async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
     let port = match std::env::var("LOGSEEKER_PORT") {
         Ok(v) => u16::from_str(v.trim()).context("parse LOGSEEKER_PORT")?,
-        Err(_) => portpicker::pick_unused_port().context("pick unused port")?,
+        Err(_) => 8001,
     };
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -137,11 +137,10 @@ async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
         .merge(("address", "127.0.0.1"))
         .merge(("port", port));
 
-    let rocket = rocket::custom(figment)
+    let mut rocket = rocket::custom(figment)
         .manage(AppConfig { base_url })
         .manage(store)
         .manage(index_manager)
-        .mount("/", FileServer::from(relative!("../web/dist")).rank(10))
         .mount("/", FileServer::from(relative!("static")).rank(20))
         .mount(
             "/",
@@ -157,6 +156,11 @@ async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
                 rebuild_index
             ],
         );
+
+    let dist_dir = PathBuf::from(relative!("../web/dist"));
+    if dist_dir.is_dir() {
+        rocket = rocket.mount("/", FileServer::from(dist_dir).rank(10));
+    }
 
     Ok(rocket)
 }
